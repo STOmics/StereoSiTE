@@ -13,10 +13,10 @@ If you use `StereoSiTE` in your work, please cite the `StereoSiTE` publication a
 > bioRxiv 2022.12.31.522366; doi: https://doi.org/10.1101/2022.12.31.522366
 
 ## Installation
->Install StereoSite via raw code by running:
->   git clone https://github.com/STOmics/StereoSiTE.git
->    cd StereoSiTE
->    python setup.py install
+> Install StereoSite via raw code by running:
+> git clone https://github.com/STOmics/StereoSiTE.git
+> cd StereoSiTE
+> python setup.py install
 
 
 
