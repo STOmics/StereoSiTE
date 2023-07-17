@@ -35,8 +35,8 @@ setup(
     #程序的所属分类列表
     classifiers=[
         'Development Status :: 3 - Alpha',
-        'Topic :: Bioinfomatics',
         'License :: OSI Approved :: MIT License',
-        'programming language :: Python :: 3',
+        'Programming Language :: Python :: 3',
+        'Topic :: Software Development :: Libraries',
     ],
 )

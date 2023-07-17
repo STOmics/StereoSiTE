@@ -2,7 +2,7 @@ StereoSiTE - Spatial Transcriptome Analysis in Python
 ======================================================
 
 **StereoSiTE** is a package for the analysis and visualization of spatial transcriptome data.
-It builds on top of `anndata`, `scanpy` and `scanpy`, from which it inherits modularity and scalability.
+It builds on top of `anndata`_, `scanpy`_ and `squidpy`_, from which it inherits modularity and scalability.
 It provides analysis tools to dissect cellular neighborhood based on cell composition and quantitatively define cell-cell communication in spatial.
 
 StereoSiTE's key applications
@@ -32,6 +32,9 @@ Installation
 
     python setup.py install
 
+.. _scanpy: https://scanpy.readthedocs.io/en/stable/
+.. _anndata: https://anndata.readthedocs.io/en/stable/
+.. _squidpy: https://squidpy.readthedocs.io/en/stable/
 
 
 
