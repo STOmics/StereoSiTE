@@ -1,13 +1,18 @@
 from  setuptools import setup, find_packages
 
+with open("README.rst", "r") as f:
+    long_description = f.read()
+
 setup(
     name='StereoSiTE',
     version='1.0',
     author='LiuXing',
     author_email='liuxing2@genomics.cn',
     description=('Analysis spatial transcriptomics data'),
+    long_description=long_description,
     license='MIT License',
     keywords='spatial cell interaction intensity',
+    url="https://github.com/STOmics/StereoSiTE",
 
     packages=['stereosite'], #需要打包的目录列表
 
@@ -30,7 +35,8 @@ setup(
     #程序的所属分类列表
     classifiers=[
         'Development Status :: 3 - Alpha',
-        'Topic :: Bioinfomatics'
-        'License :: OSI Approved :: MIT License'
+        'Topic :: Bioinfomatics',
+        'License :: OSI Approved :: MIT License',
+        'programming language :: Python :: 3',
     ],
 )
