@@ -14,7 +14,8 @@ StereoSiTE's key applications
 Citation
 ---------
 
-If you use `StereoSiTE` in your work, please cite the `StereoSiTE` publication as follows:
+If you use `StereoSiTE`_ in your work, please cite the publication as follows:
+
     **StereoSiTE: A framework to spatially and quantitatively profile the cellular neighborhood organized iTME**
 
     Xing Liu, Chi Qu, Chuandong Liu, Na Zhu, Huaqiang Huang, Fei Teng, Caili Huang, Bingying Luo, Xuanzhu Liu, Yisong Xu, Min Xie, Feng Xi, Mei Li, Liang Wu, Yuxiang Li, Ao Chen, Xun Xu, Sha Liao, Jiajun Zhang
@@ -41,6 +42,7 @@ or via raw code by running:
 .. _scanpy: https://scanpy.readthedocs.io/en/stable/
 .. _anndata: https://anndata.readthedocs.io/en/stable/
 .. _squidpy: https://squidpy.readthedocs.io/en/stable/
+.. _StereoSiTE: https://github.com/STOmics/StereoSiTE 
 
 
 
