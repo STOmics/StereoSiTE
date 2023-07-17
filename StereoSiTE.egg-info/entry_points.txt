@@ -1,3 +1,0 @@
-[console_scripts]
-scii = stereosite.SCII:maindeconcolution = stereosite.CN.deconvolution:main
-
