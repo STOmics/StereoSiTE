@@ -24,7 +24,13 @@ If you use `StereoSiTE` in your work, please cite the `StereoSiTE` publication a
 Installation
 -------------
 
-    Install StereoSite via raw code by running:
+Install StereoSiTE via PyPi by running:
+::
+
+    pip install StereoSiTE
+
+or via raw code by running:
+::
 
     git clone https://github.com/STOmics/StereoSiTE.git
 
