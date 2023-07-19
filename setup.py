@@ -5,7 +5,7 @@ with open("README.rst", "r") as f:
 
 setup(
     name='StereoSiTE',
-    version='1.0',
+    version='1.0.1',
     author='LiuXing',
     author_email='liuxing2@genomics.cn',
     description=('Analysis spatial transcriptomics data'),
@@ -23,20 +23,5 @@ setup(
         'anndata>=0.8.0',
         'scanpy>=1.9.1',
         'squidpy>=1.1.2',
-    ],
-
-    entry_points = {
-        'console_scripts': [
-            'scii = stereosite.SCII:main'
-            'deconcolution = stereosite.CN.deconvolution:main'
-        ]
-    },
-
-    #程序的所属分类列表
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3',
-        'Topic :: Software Development :: Libraries',
     ],
 )

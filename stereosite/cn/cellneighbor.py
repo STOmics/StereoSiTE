@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from scipy import sparse as sp
 import logging as logg
 
-def cn_deconvolution(adata: anndata,
+def cn_deconvolute(adata: anndata,
                      use_rep: str = 'q05_cell_abundance_w_sf',
                      n_neighbors: int = 20,
                      resolution: float = 0.4,
@@ -66,7 +66,7 @@ def cn_cellbin(adata: anndata,
                anno: str = 'cell2loc_anno',
                n_neighbors: int = 20,
                resolution: float = 0.4,
-               min_dist: float = 0.2,
+               min_dist: float = 0.1,
                key_added: str = None,
                random_stat:int = 100,
                ):
@@ -94,7 +94,7 @@ def cn_cellbin(adata: anndata,
         Column name of adata.obs, which store the result of leiden clustering. 
     """
     if key_added == None:
-        key_added = 'cell_neighbr'
+        key_added = 'cell_neighbor'
     bin_cor =[str(x[0]) + "-" + str(x[1]) for x in ((adata.obsm['spatial']//bin_size)*bin_size+(bin_size/2)).astype(int)]
     adata.obs['bin_cor'] = bin_cor
     groups = adata.obs[anno].groupby(adata.obs['bin_cor'])
@@ -132,7 +132,7 @@ def cn_cellbin(adata: anndata,
     cellbin_count[key_added] = groups
     cn_pct = pd.pivot_table(cellbin_count, columns = key_added, values = values, aggfunc=np.sum).T
     cn_pct = cn_pct.apply(lambda x: x/x.sum()*100, axis=1)
-    adata.uns['CN']['cell_composition'] = cellbin_count.apply(lambda x: x/x.sum(), axis=1)
+    adata.uns['CN']['cell_composition'] = cn_pct
 
     #umap
     import umap

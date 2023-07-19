@@ -55,7 +55,7 @@ def intensity_insitu(adata: anndata,
                   cells: list,
                   genes: list,
                   anno: str= 'cell2loc_anno',
-                  radius: int = 200,
+                  radius: int = None,
                   connectivities_key: str = "spatial_connectivities",
                   complex_process_model = 'mean') -> int:
     """
@@ -105,10 +105,14 @@ def intensity_insitu(adata: anndata,
     else:
         r = (adata.obs[anno]==cells[1])*(adata[:,genes[1]].X.sum(axis=1).A1)
     
-    if not connectivities_key in adata.obsp.keys():
+    if connectivities_key in adata.obsp.keys() and radius == None:
+        connect_matrix = adata.obsp[connectivities_key]
+    elif connectivities_key not in adata.obsp.keys() and radius > 10 :
         key_added = connectivities_key.replace("_connectivities", "")
         sq.gr.spatial_neighbors(adata, radius=radius*2, coord_type="generic", key_added=key_added)
-    connect_matrix = adata.obsp[connectivities_key]
+        connect_matrix = adata.obsp[connectivities_key]
+    else:
+        raise Exception(f"The connectivities_key ({connectivities_key}) dosn't exist in adata.obsp, and radius has not be specified with a value >= 10")
 
     l = l.values
     r = r.values

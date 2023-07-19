@@ -126,7 +126,7 @@ class Gem_Reader():
             contains gene expression vector and sptial coordinate of each cell 
         """
 
-        gem = gem[gem[self.cell_label_key]!=0]
+        gem = self.gem[self.gem[self.cell_label_key]!=0]
     
         cells = gem[self.cell_label_key].unique()
         genes = gem['geneID'].unique()
@@ -174,5 +174,6 @@ class Gem_Reader():
         tissuedf[self.cell_label_key] = labels[dst]
 
         res = pd.merge(self.gem, tissuedf, on=['x', 'y'], how='inner')
-        adata = self.cellbin2anndata(res)
+        self.gem = res
+        adata = self.cellbin2anndata()
         return adata

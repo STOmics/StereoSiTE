@@ -19,7 +19,7 @@ def umap(adata: anndata,
          color: str = 'cell2loc_anno',
          legend_loc: str = 'on data',
          legend_fontsize: int = 20,
-         figsize: list = [6, 6]
+         figsize: tuple = (6, 6)
          ):
     if 'umap' not in adata.uns['CN']:
         with plt.rc_context({'axes.facecolor':'white','figure.figsize': figsize}):
@@ -30,17 +30,18 @@ def umap(adata: anndata,
                        legend_loc=legend_loc, 
                        legend_fontsize=legend_fontsize)
     else:
-        if f"{color}_colors" in adata.uns.keys:
+        if f"{color}_colors" in adata.uns.keys():
             palette = adata.uns[f'{color}_colors']
         else:
             palette = 'tab20'
-            umap_result = adata.uns['CN']['umap']
-            leiden_cluster = adata.uns['CN']['leiden_cluster']
-            fig, ax = plt.subplots(figsize=(4, 4))
-            sns.scatterplot(x = umap_result[:, 0], y = umap_result[:, 1], hue = leiden_cluster, palette = 'tab20', s = 10, ax=ax)
-            ax.set_xlabel('UMAP1')
-            ax.set_ylabel('UMAP2')
-            ax.set_title('Cellular_Neighborhood')
+        umap_result = adata.uns['CN']['umap']
+        leiden_cluster = adata.uns['CN']['leiden_cluster']
+        fig, ax = plt.subplots(figsize=figsize)
+        sns.scatterplot(x = umap_result[:, 0], y = umap_result[:, 1], hue = leiden_cluster, palette = 'tab20', s = 10, ax=ax)
+        ax.set_xlabel('UMAP1')
+        ax.set_ylabel('UMAP2')
+        ax.set_title('Cellular_Neighborhood')
+        plt.show()
 
 def spatial(adata: anndata,
             spot_size: int = 100,
