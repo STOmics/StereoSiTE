@@ -5,7 +5,7 @@ with open("README.rst", "r") as f:
 
 setup(
     name='StereoSiTE',
-    version='1.0.1',
+    version='1.0.2',
     author='LiuXing',
     author_email='liuxing2@genomics.cn',
     description=('Analysis spatial transcriptomics data'),
