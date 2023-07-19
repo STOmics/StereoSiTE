@@ -28,7 +28,7 @@ Installation
 Install StereoSiTE via PyPi by running:
 ::
 
-    pip install StereoSiTE
+    pip install stereosite
 
 or via raw code by running:
 ::

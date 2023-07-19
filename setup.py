@@ -4,7 +4,7 @@ with open("README.rst", "r") as f:
     long_description = f.read()
 
 setup(
-    name='StereoSiTE',
+    name='stereosite',
     version='1.0.2',
     author='LiuXing',
     author_email='liuxing2@genomics.cn',
