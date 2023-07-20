@@ -1,11 +1,11 @@
 from  setuptools import setup, find_packages
 
-with open("README.rst", "r") as f:
+with open("PYPI.rst", "r") as f:
     long_description = f.read()
 
 setup(
     name='stereosite',
-    version='1.0.2',
+    version='1.0.3',
     author='LiuXing',
     author_email='liuxing2@genomics.cn',
     description=('Analysis spatial transcriptomics data'),

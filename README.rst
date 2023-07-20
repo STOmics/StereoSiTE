@@ -58,10 +58,10 @@ Run examples
 **Cellular Neighborhood (CN)**
 ::
     #calculate CN with cell type deconvolution result of squared bin data
-    from stereosite.cn.cellneighbor import cn_deconvolute
+    from stereosite.cn.cellneighbor import cn_deconvolve
     import anndata
     adata = anndata.read(adata_file)
-    cn_deconvolute(adata, use_rep='q05_cell_abundance_w_sf') # use_rep specify matrix used to calculate cell composition of every bin
+    cn_deconvolve(adata, use_rep='q05_cell_abundance_w_sf') # use_rep specify matrix used to calculate cell composition of every bin
 
     #or calculate CN with annotated cell bin data
     from stereosite.cn.cellneighbor import cn_cellbin
