@@ -1,5 +1,6 @@
 __pycache__/
 .pypi
+#/tests/
 
 # Distribution / packaging
 .Python
