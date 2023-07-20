@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from scipy import sparse as sp
 import logging as logg
 
-def cn_deconvolute(adata: anndata,
+def cn_deconvolve(adata: anndata,
                      use_rep: str = 'q05_cell_abundance_w_sf',
                      n_neighbors: int = 20,
                      resolution: float = 0.4,
