@@ -23,5 +23,8 @@ setup(
         'anndata>=0.8.0',
         'scanpy>=1.9.1',
         'squidpy>=1.1.2',
+        'decoupler>=1.4.0',
+        'pydeseq2>=0.3.6',
+        'networkx>=3.1'
     ],
 )
