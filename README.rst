@@ -110,7 +110,7 @@ Run examples
     :target: https://pypi.org/project/stereosite/
     :alt: PyPI
 
-.. |Downloads| image:: https://pepy.tech/badge/stereosite
+.. |Downloads| image:: https://static.pepy.tech/badge/stereosite
     :target: https://pepy.tech/project/stereosite
     :alt: Downloads
 
