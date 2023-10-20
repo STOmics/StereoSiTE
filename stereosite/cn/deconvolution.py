@@ -142,7 +142,7 @@ class Cell2location():
 
             # In this section, we export the estimated cell abundance (summary of the posterior distribution).
             adata_ref = mod.export_posterior(
-                adata_ref, sample_kwargs={'num_samples':1000, 'batch_size': 2500, 'use_gpu': True}
+                adata_ref, sample_kwargs={'num_samples':1000, 'batch_size': 2500, 'use_gpu': self.gpu}
             )
 
             #Save model
