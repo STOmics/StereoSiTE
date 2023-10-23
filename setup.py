@@ -5,7 +5,7 @@ with open("PYPI.rst", "r") as f:
 
 setup(
     name='stereosite',
-    version='1.0.6',
+    version='1.0.7',
     author='LiuXing',
     author_email='liuxing2@genomics.cn',
     description=('Analysis spatial transcriptomics data'),

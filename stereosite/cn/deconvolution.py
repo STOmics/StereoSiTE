@@ -55,16 +55,12 @@ class Cell2location():
         self.adata_vis_file = adata_vis_file
         self.results_folder = out_dir
         self.N_cells_per_location = int((bin_size*500/10000)**2) if bin_size > 1 else 1 #calculate the cell number per bin based on bin size
-        if gpu.isinstance(bool):
-            self.gpu = gpu
-        elif gpu.upper() == 'TRUE':
+        if gpu.upper() == 'TRUE':
             self.gpu = True
         elif gpu.upper() == 'FALSE':
             self.gpu = False
-        elif gpu.isinstance(int):
-            self.gpu = f"cuda:{gpu}"
         else:
-            raise Exception("parameter gpu must be bool or int!!!")
+            self.gpu = f"cuda:{gpu}"
         self.ref_run_name = f'{self.results_folder}/reference_signatures'
         self.run_name = f'{self.results_folder}/cell2location_map'
         self.figures = f'{self.results_folder}/figures'
