@@ -55,9 +55,9 @@ class Cell2location():
         self.adata_vis_file = adata_vis_file
         self.results_folder = out_dir
         self.N_cells_per_location = int((bin_size*500/10000)**2) if bin_size > 1 else 1 #calculate the cell number per bin based on bin size
-        if gpu.upper() == 'TRUE':
+        if str(gpu).upper() == 'TRUE':
             self.gpu = True
-        elif gpu.upper() == 'FALSE':
+        elif str(gpu).upper() == 'FALSE':
             self.gpu = False
         else:
             self.gpu = f"cuda:{gpu}"
