@@ -21,7 +21,11 @@ def _intensity_show(LRadata: anndata,
                     genes: list,
                     l: np.ndarray,
                     r: np.ndarray,
-                    key: str = 'spatial_exp'):
+                    key: str = 'spatial_exp',
+                    alpha_g:float = 0.5,
+                    alpha_i:float = 0.4,
+                    spot_size:float = 2,
+                    save: str = None):
     """
     draw the spatial cell interaction intensity in space.
     """
@@ -34,30 +38,43 @@ def _intensity_show(LRadata: anndata,
     colors = ['tab:blue', 'tab:orange', 'tab:red']
     fig, ax = plt.subplots(figsize=(4,5), dpi=200)
     i=0
+    scatters = []
+    labels = []
     for gene in genes:
         df1 = df[df[gene]>0]
-        scatter = ax.scatter(x =  df1['x'], y = df1['y'], c = colors[i], label = gene, edgecolors='none', alpha = 0.5, s = 1)
+        scatter = ax.scatter(x =  df1['x'], y = df1['y'], c = colors[i], edgecolors='none', alpha = alpha_g, s = spot_size)
+        scatters.append(scatter)
+        labels.append(gene)
         i+=1
     if (df.shape[0] > 0):
-        scatter = ax.scatter(x = df['x'], y = df['y'], c = colors[2], s = df['intensity'], edgecolors='none', label='intensity', alpha = 0.5)
-        handles, labels = scatter.legend_elements(prop="sizes", alpha=0.6)
-        legend1 = ax.legend(handles, labels, loc = 'upper left', prop = {'size': 3}, title = 'intensity')
+        scatter = ax.scatter(x = df['x'], y = df['y'], c = colors[2], s = df['intensity'], edgecolors='none', alpha = alpha_i)
+        scatters.append(scatter)
+        labels.append('intensity')
+        handles, labels1 = scatter.legend_elements(prop="sizes", alpha=0.6)
+        legend1 = ax.legend(handles, labels1, bbox_to_anchor=[1.0, 0.7], fontsize=3, title = 'intensity')
         ax.add_artist(legend1)
     else:
         return 0
     ax.set_ylim(bottom = df['y'].max(), top = 0)
-    ax.legend(prop = {'size': 6})
+    ax.legend(scatters, labels, prop = {'size': 4}, bbox_to_anchor=[1.25, 0.8], fontsize=4)
     plt.gca().set_aspect(1)
     plt.axis('off')
-    plt.title(f"{cells[0]}_{cells[1]} ({genes[0]}_{genes[1]})")
+    plt.title(f"{cells[0]} | {cells[1]}\n({genes[0]} | {genes[1]})")
+    if save!=None:
+        plt.savefig(save)
     
 def intensity_insitu(adata: anndata,
                   cells: list,
                   genes: list,
                   anno: str= 'cell2loc_anno',
-                  radius: int = None,
+                  radius: int = 0,
                   connectivities_key: str = "spatial_connectivities",
-                  complex_process_model = 'mean') -> int:
+                  complex_process_model: str = 'mean',
+                  alpha_g:float = 0.5,
+                  alpha_i:float = 0.4,
+                  spot_size:float = 2,
+                  save: str = None
+                  ) -> int:
     """
     Calculate the spatial cell interaction intensity between specified cells and ligand receptor genes.
 
@@ -105,12 +122,15 @@ def intensity_insitu(adata: anndata,
     else:
         r = (adata.obs[anno]==cells[1])*(adata[:,genes[1]].X.sum(axis=1).A1)
     
-    if connectivities_key in adata.obsp.keys() and radius == None:
+    if connectivities_key in adata.obsp.keys() and radius == 0:
         connect_matrix = adata.obsp[connectivities_key]
-    elif connectivities_key not in adata.obsp.keys() and radius > 10 :
-        key_added = connectivities_key.replace("_connectivities", "")
-        sq.gr.spatial_neighbors(adata, radius=radius*2, coord_type="generic", key_added=key_added)
-        connect_matrix = adata.obsp[connectivities_key]
+    elif radius > 10:
+        key_added = f"{radius}um"
+        if f"{key_added}_connectivities" in adata.obsp.keys():
+            connect_matrix = adata.obsp[f"{key_added}_connectivities"]
+        else:
+            sq.gr.spatial_neighbors(adata, radius=radius*2, coord_type="generic", key_added=key_added)
+            connect_matrix = adata.obsp[f"{key_added}_connectivities"]
     else:
         raise Exception(f"The connectivities_key ({connectivities_key}) dosn't exist in adata.obsp, and radius has not be specified with a value >= 10")
 
@@ -122,7 +142,7 @@ def intensity_insitu(adata: anndata,
     exps = l[l_rows[dst[0]]] + r[r_cols[dst[1]]]
     spatial_exp = sparse.csr_matrix((exps, (l_rows[dst[0]], r_cols[dst[1]])), shape=connect_matrix.shape, dtype=int)
     adata.obsp[exp_key] = spatial_exp
-    _intensity_show(adata, cells, genes, l, r, key=exp_key)
+    _intensity_show(adata, cells, genes, l, r, key=exp_key, alpha_g=alpha_g, alpha_i=alpha_i, spot_size=spot_size, save=save)
     return spatial_exp.sum()
 
 def intensities_with_radius(adata, pairs = None):
