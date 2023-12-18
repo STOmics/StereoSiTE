@@ -302,7 +302,7 @@ class Cell2location():
         """
         import math
         from tqdm import tqdm
-        rcParams['figure.figsize'] = 10, 10
+        rcParams['figure.figsize'] = 5, 5
         sc.pl.spatial(adata_vis, img_key="hires", color=anno, spot_size=spot_size, save=f"{anno}.png")
 
         cellsCount = adata_vis.obs[anno].value_counts()
