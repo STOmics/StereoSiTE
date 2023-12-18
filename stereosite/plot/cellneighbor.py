@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 def umap(adata: anndata,
          size: int = 10,
-         color: str = 'cell2loc_anno',
+         color: str = 'cell_neighbor',
          legend_loc: str = 'on data',
          legend_fontsize: int = 20,
          figsize: tuple = (6, 6)

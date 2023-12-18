@@ -25,6 +25,7 @@ def _intensity_show(LRadata: anndata,
                     alpha_g:float = 0.5,
                     alpha_i:float = 0.4,
                     spot_size:float = 2,
+                    figsize:tuple = (4, 5),
                     save: str = None):
     """
     draw the spatial cell interaction intensity in space.
@@ -36,7 +37,7 @@ def _intensity_show(LRadata: anndata,
     df[genes[0]] = l
     df[genes[1]] = r
     colors = ['tab:blue', 'tab:orange', 'tab:red']
-    fig, ax = plt.subplots(figsize=(4,5), dpi=200)
+    fig, ax = plt.subplots(figsize=figsize, dpi=200)
     i=0
     scatters = []
     labels = []
@@ -47,11 +48,11 @@ def _intensity_show(LRadata: anndata,
         labels.append(gene)
         i+=1
     if (df.shape[0] > 0):
-        scatter = ax.scatter(x = df['x'], y = df['y'], c = colors[2], s = df['intensity'], edgecolors='none', alpha = alpha_i)
+        scatter = ax.scatter(x = df['x'], y = df['y'], c = colors[2], s = df['intensity']*spot_size, edgecolors='none', alpha = alpha_i)
         scatters.append(scatter)
         labels.append('intensity')
         handles, labels1 = scatter.legend_elements(prop="sizes", alpha=0.6)
-        legend1 = ax.legend(handles, labels1, bbox_to_anchor=[1.0, 0.7], fontsize=3, title = 'intensity')
+        legend1 = ax.legend(handles, labels1, bbox_to_anchor=[1.25, 0.7], fontsize=3, title = 'intensity')
         ax.add_artist(legend1)
     else:
         return 0
@@ -73,6 +74,7 @@ def intensity_insitu(adata: anndata,
                   alpha_g:float = 0.5,
                   alpha_i:float = 0.4,
                   spot_size:float = 2,
+                  figsize:tuple = (4, 5),
                   save: str = None
                   ) -> int:
     """
@@ -142,7 +144,7 @@ def intensity_insitu(adata: anndata,
     exps = l[l_rows[dst[0]]] + r[r_cols[dst[1]]]
     spatial_exp = sparse.csr_matrix((exps, (l_rows[dst[0]], r_cols[dst[1]])), shape=connect_matrix.shape, dtype=int)
     adata.obsp[exp_key] = spatial_exp
-    _intensity_show(adata, cells, genes, l, r, key=exp_key, alpha_g=alpha_g, alpha_i=alpha_i, spot_size=spot_size, save=save)
+    _intensity_show(adata, cells, genes, l, r, key=exp_key, alpha_g=alpha_g, alpha_i=alpha_i, spot_size=spot_size, figsize=figsize, save=save)
     return spatial_exp.sum()
 
 def intensities_with_radius(adata, pairs = None):

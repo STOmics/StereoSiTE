@@ -143,8 +143,7 @@ class Gem_Reader():
         spatialgroup = gem[['x', 'y']].groupby(gem[self.cell_label_key])
         spatialdf = spatialgroup.agg(lambda x: (x.max()+x.min())/2)
         spatialdf = spatialdf.reset_index()
-        spatialdf[self.cell_label_key] = spatialdf[self.cell_label_key].astype('category')
-        spatialdf[self.cell_label_key].cat.reorder_categories(cells, inplace=True)
+        spatialdf[self.cell_label_key] = spatialdf[self.cell_label_key].astype('category').cat.reorder_categories(cells, ordered=True)
         spatialdf.sort_values(self.cell_label_key, inplace=True)
         adata.obsm['spatial'] = spatialdf[['x', 'y']].values
         return adata
