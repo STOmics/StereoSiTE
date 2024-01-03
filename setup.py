@@ -10,7 +10,7 @@ setup(
     author_email='liuxing2@genomics.cn',
     description=('Analysis spatial transcriptomics data'),
     long_description=long_description,
-    license='MIT License',
+    license='GPL-3 License',
     keywords='spatial cell interaction intensity',
     url="https://github.com/STOmics/StereoSiTE",
 
