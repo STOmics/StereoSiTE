@@ -55,20 +55,19 @@ def _hm_translate(adata, LRpairs):
         #tanslate LRpairs from human genes to mouse genes
         hmdict = adata.var['original_gene_symbol'].to_dict()
         mouse_LRpairs = []
-        for LRpair in LRpairs:
-            mouse_LRpair = []
+        for LRpair in LRpairs:              
             for gene in LRpair:
                 if "_" in gene:
-                    mouse_LRpair.append("_".join([hmdict[z] if z in hmdict.keys() else z for z in gene.split("_")]))
+                    mouse_LRpairs.append("_".join([hmdict[z] if z in hmdict.keys() else z for z in gene.split("_")]))
                 else:
-                    mouse_LRpair.append(hmdict[gene] if gene in hmdict.keys() else gene)
-            mouse_LRpairs.append(mouse_LRpair)
+                    mouse_LRpairs.append(hmdict[gene] if gene in hmdict.keys() else gene)
         return mouse_LRpairs
     else:
         return LRpairs
 
 def _generate_LRpairs(interactionDB:str,
-                      adata:anndata):
+                      adata:anndata,
+                      LR_anno:str='annotation'):
     """
     process L-R database.
     """
@@ -95,38 +94,55 @@ def _generate_LRpairs(interactionDB:str,
                 )
         interactions[SOURCE] = interactions[SOURCE].str.replace("^COMPLEX:", "", regex=True)
         interactions[TARGET] = interactions[TARGET].str.replace("^COMPLEX:", "", regex=True)
+    
+    LRpairs_dict = dict()
+    if LR_anno in interactions.columns:
+        LR_types = interactions[LR_anno].unique()
+        for LR_type in LR_types:
+            LRpairs_dict[LR_type] = interactions[interactions[LR_anno] == LR_type][[SOURCE, TARGET]].drop_duplicates().values
+    else:
+        LRpairs_dict['All'] = interactions[[SOURCE, TARGET]].drop_duplicates().values
     LRpairs = interactions[[SOURCE, TARGET]].drop_duplicates().values
-    LRlist = []
-    for gene in LRpairs.flatten():
-        LRlist.extend(gene.split("_"))
+    LRlist = [] 
+    filter_LRpairs = dict()
+    for LR_type, LRpairs in LRpairs_dict.items():
+        filter_LRpairs[LR_type] = list()
+        for LRpair in LRpairs:
+            ligand, receptor = LRpair
+            ligand_subs = ligand.split("_")
+            receptor_subs = receptor.split("_")
+            genes = ligand_subs + receptor_subs
+            if all(g in adata.var_names for g in genes):
+                filter_LRpairs[LR_type].append(LRpair)
+                LRlist.extend(genes) 
     adata = adata[:, adata.var_names.isin(LRlist)]
-    filter_LRpairs = []
-    for LRpair in LRpairs:
-        ligand, receptor = LRpair
-        if all(l in adata.var_names for l in ligand.split("_")) and all(r in adata.var_names for r in receptor.split("_")):
-            filter_LRpairs.append(LRpair)
     return filter_LRpairs, adata
 
 def _generate_neighbors_graph(adata:anndata,
-                              radius:int = 400,
+                              radius = 400, #int or dict
                               anno:str = "cell2loc_anno"):
-        sq.gr.spatial_neighbors(adata, radius = radius, coord_type="generic")
-        sq.gr.nhood_enrichment(adata, cluster_key= anno)
-        np.nan_to_num(adata.uns[f"{anno}_nhood_enrichment"]['zscore'], copy=False)
-    
+        if isinstance(radius, int):
+            sq.gr.spatial_neighbors(adata, radius=radius, coord_type="generic", key_added=str(r))
+        elif isinstance(radius, dict):
+            for LR_type, r in radius.items():
+                sq.gr.spatial_neighbors(adata, radius=r, coord_type='generic', key_added=str(r))
+        else:
+            raise Exception("radius type must be int or dictionary, but get: {0}".format(type(radius)))
+        #sq.gr.nhood_enrichment(adata, cluster_key= anno)
+        #np.nan_to_num(adata.uns[f"{anno}_nhood_enrichment"]['zscore'], copy=False)  
         return adata
 
 def preprocess_adata(adata:anndata,
                      interactionDB:str,
                      sample_number:int = 1000000,
                      seed:int = 101,
-                     radius:int = 200,
+                     radius = 200, #int or dict
+                     scale:float = 0.5,
+                     LR_anno:str = "annotation",
                      anno:str = "cell2loc_anno",
                      use_raw:bool = True):
 
-    #change the radius unit from um to dnb
-    radius = radius*2
-    #adata = anndata.read(adata_file)  
+    #adata = anndata.read(adata_file)
     if adata.raw and use_raw:
         adata = adata.raw.to_adata()
     #sampling data with 1000000 cells
@@ -142,8 +158,16 @@ def preprocess_adata(adata:anndata,
         logging.info("get subsample data from original data, the subsample data shape is {0}".format(adata.shape))
 
     #generate LRpairs list from interactions
-    LRpairs, adata = _generate_LRpairs(interactionDB, adata)
+    LRpairs, adata = _generate_LRpairs(interactionDB, adata, LR_anno=LR_anno)
     logging.info(f"generate LRpairs finished, and get {len(LRpairs)} LRpair")
+    #change the radius unit from um to dnb and Check if the LR types given by parameter contians all LR types in the interaction database
+    if isinstance(radius, int):
+        radius = int(radius/scale)
+    elif isinstance(radius, dict):
+        for LRtype, r in radius.items():
+            radius[LRtype] = int(r/scale)
+        if not set(LRpairs.keys()).issubset(set(radius.keys())):
+            raise Exception("LR types given by parameter radius: {0} don't contain all LR types in the interaction database: {1}".format(LRpairs.keys(), radius.keys()))
     adata = _generate_neighbors_graph(adata, radius=radius, anno = anno)
     return adata, LRpairs, sample_rate
 
@@ -238,7 +262,9 @@ def _result_combined(result_list:list, #list<np.array>
 
 def intensities_count(adata:anndata,
                       interactionDB:str,
-                      distance_threshold:int = 200,
+                      distance_threshold = 200, #int or dict
+                      scale:float = 0.5,
+                      LR_anno:str = "annotation",
                       anno:str = "cell_type",
                       seed:int = 101,
                       n_perms:int = 1000,
@@ -255,8 +281,14 @@ def intensities_count(adata:anndata,
     interactionDB
         file that stores ligand receptor pairs
     distance_threshold
-        only cell pairs with distance shorter than distance_threshold will be connected when construct nearest neighbor graph.
+        only cell pairs with the distance shorter than distance_threshold will be connected when construct nearest neighbor graph.
         default = 200. The unit is µm
+        If the ligand-receptor pairs have been clustered into different types, the distance_threshold can receive a dictionary with 
+        LR types and corresponding distance thresholds. e.g: {'Secreted Signaling': 200, 'ECM-Receptor': 200, 'Cell-Cell Contact': 30}
+    scale
+        The distance between adjancent spots, the unit is µm. For Stereo-chip, scale=0.5. default=0.5 
+    LR_anno
+        The name of the column that contains the LR types annotation information, default=annotation.
     anno
         cell type annotation key, default=cell_type
     seed
@@ -281,8 +313,8 @@ def intensities_count(adata:anndata,
         }
     """
 
-    adata, LRpairs, sample_rate = preprocess_adata(adata, interactionDB, radius=distance_threshold, seed = seed, anno=anno, use_raw=use_raw)
-    connect_matrix = adata.obsp['spatial_connectivities']
+    adata, LRpairs, sample_rate = preprocess_adata(adata, interactionDB, radius=distance_threshold, scale=scale, seed = seed, LR_anno=LR_anno, anno=anno, use_raw=use_raw)
+    #connect_matrix = adata.obsp['spatial_connectivities']
     cell_types = adata.obs[anno].unique()
     cell_type_dict = dict(zip(cell_types, range(0, len(cell_types))))
     cellTypeIndex = adata.obs[anno].map(cell_type_dict).astype(int).values
@@ -292,17 +324,37 @@ def intensities_count(adata:anndata,
     results = []
     intensities_list = []
     pvalues_list = []
+    LRpairs_lists = []
     if (jobs == 1):
-        for LRpair in tqdm(LRpairs):     
-            results.append(_LRpair_process(adata, LRpair, connect_matrix, cellTypeIndex,cellTypeNumber, seed, n_perms, complex_process=complex_process_model))
+        for LRtype, LRpair_list in LRpairs.items():
+            logging.info("compute the interaction intensity of LRpairs {0}".format(LRtype))
+            if isinstance(distance_threshold, int):
+                connect_matrix = adata.obsp[f"{int(distance_threshold/scale)}_connectivities"]
+            elif isinstance(distance_threshold, dict):
+                connect_matrix = adata.obsp[f"{int(distance_threshold[LRtype])}_connectivities"]
+            else:
+                raise Exception("the type of distance_threshold must be int or dict, but get:{0}".format(type(distance_threshold)))         
+            for LRpair in LRpair_list:
+                LRpairs_lists.append(LRpair)
+                results.append(_LRpair_process(adata, LRpair, connect_matrix, cellTypeIndex,cellTypeNumber, seed, n_perms, complex_process=complex_process_model))
     else:
         pool = Pool(jobs)
-        for LRpair in tqdm(LRpairs):
-            results.append(pool.apply_async(_LRpair_process, (adata, LRpair, connect_matrix, cellTypeIndex, cellTypeNumber, seed, n_perms, complex_process_model)))
+        for LRtype, LRpair_list in LRpairs.items():
+            logging.info("compute the interaction intensity of LRpairs {0}".format(LRtype))
+            if isinstance(distance_threshold, int):
+                connect_matrix = adata.obsp[f"{int(distance_threshold/scale)}_connectivities"]
+            elif isinstance(distance_threshold, dict):
+                connect_matrix = adata.obsp[f"{int(distance_threshold[LRtype])}_connectivities"]
+            else:
+                raise Exception("the type of distance_threshold must be int or dict, but get:{0}".format(type(distance_threshold)))
+            LRpairs_lists.extend(LRpair_list)
+            for LRpair in tqdm(LRpair_list):
+                LRpairs_lists.append(LRpair)
+                results.append(pool.apply_async(_LRpair_process, (adata, LRpair, connect_matrix, cellTypeIndex, cellTypeNumber, seed, n_perms, complex_process_model)))
         pool.close()
         pool.join()
     logging.info("interaction intensity count finished.")
-    LRpairs = _hm_translate(adata, LRpairs)
+    LRpairs_lists = _hm_translate(adata, LRpairs_lists)
     logging.info("begin to combine results")
     for result in results:
         if (jobs == 1):
@@ -311,8 +363,8 @@ def intensities_count(adata:anndata,
             intensities, pvalues = result.get()
         intensities_list.append(intensities)
         pvalues_list.append(pvalues)
-    intensity_df = _result_combined(intensities_list, LRpairs, cell_types)
-    pvalues_df = _result_combined(pvalues_list, LRpairs, cell_types)
+    intensity_df = _result_combined(intensities_list, LRpairs_lists, cell_types)
+    pvalues_df = _result_combined(pvalues_list, LRpairs_lists, cell_types)
     intensity_df = intensity_df/sample_rate
     logging.info(f"result combining finished.")
     
@@ -321,6 +373,9 @@ def intensities_count(adata:anndata,
     return plot_data
 
 def intensities_write(plot_data, out_dir):
+
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir, exist_ok=True)
 
     intensity_df = plot_data['intensities']
     pvalues_df = plot_data['pvalues']
@@ -404,8 +459,9 @@ def main():
     parser.add_option("-i", "--adata", action = "store", type = "str", dest = "adata", help = "input stereo-seq data in h5ad format.")
     parser.add_option("-o", "--out_dir", action = "store", type = "str", dest = "out_dir", help = "output directory path.")
     parser.add_option("-d", "--interactionDB", action = "store", type = "str", dest = "interactions", help = "interaction database file path.")
-    parser.add_option("--distance", action = "store", type = "int", dest = "distance", default = 200, help = "if cells distance shorter than the threshold, they will be connected. The unit is µm. default=200 (µm)")
-    parser.add_option("-t", "--threads", action = "store", type = "int", dest = "threads", default = 1, help = "number of processing that will be used to run this program. default=10")
+    parser.add_option("--distances", action = "store", type = "str", dest = "distances", default = "all=200", help = "if the distance between adjacent cells is less than the threshold, they will be connected.\
+                       The unit is µm. default: all=200 (µm), or you can give different distance threshold for different LR types, such as: 'Secreted Signaling=200,ECM-Receptor=200,Cell-Cell Contact=30'")
+    parser.add_option("-t", "--threads", action = "store", type = "int", dest = "threads", default = 1, help = "number of processing that will be used to run this program. default=1")
     parser.add_option("--n_perms", action = "store", type = "int", dest = "n_perms", default = 1000, help = "number of permutation test times. default=1000")
     parser.add_option("--seed", action = "store", type = "int", dest = "seed", default = 101, help = "seed for randomly shuffle cell type label. default=101")
     parser.add_option("--use_raw", action = "store", type = "str", dest = "use_raw", default = "True", help = "if use raw data in the anndata. default=True")
@@ -413,19 +469,22 @@ def main():
     parser.add_option("--complex_process", action = "store", type = "str", dest = "complex_process", default = "mean", help = "choose the procession method for complex, mean or min. default=mean")
     opts, args = parser.parse_args()
 
-    if (opts.adata == None or opts.outDir == None or opts.interactions == None):
+    if (opts.adata == None or opts.out_dir == None or opts.interactions == None):
         sys.exit(not parser.print_help())
-
+    distances_str = opts.distances
+    distances = dict([[x.strip().split("=")[0], int(x.strip().split("=")[1])] for x in distances_str.strip().split(",")])
+    if 'all' in distances.keys():
+        distances = distances['all']
     adata = anndata.read(opts.adata)
     plot_data = intensities_count(adata, 
                       opts.interactions, 
-                      distance_threshold=opts.distance, 
+                      distance_threshold=distances, 
                       anno=opts.cell_type,
                       n_perms=opts.n_perms, 
                       seed=opts.seed,
-                      threads = opts.threads,
+                      jobs = opts.threads,
                       use_raw=bool(opts.use_raw),
-                      complex_process = opts.complex_process)
+                      complex_process_model = opts.complex_process)
     intensities_write(plot_data, opts.out_dir)
 
 if __name__ == "__main__":

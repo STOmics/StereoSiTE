@@ -21,7 +21,7 @@ def _intensity_show(LRadata: anndata,
                     genes: list,
                     l: np.ndarray,
                     r: np.ndarray,
-                    key: str = 'spatial_exp',
+                    key: str = 'expression_spatial_connectivities',
                     alpha_g:float = 0.5,
                     alpha_i:float = 0.4,
                     spot_size:float = 2,
@@ -104,7 +104,7 @@ def intensity_insitu(adata: anndata,
     ----------
         intensity value of the entire slide
     """ 
-    exp_key = "spatial_exp"
+    exp_key = "expression"
     if "_" in genes[0]:
         if complex_process_model == 'min':
             l = (adata.obs[anno]==cells[0])*(adata[:,genes[0].split("_")].X.min(axis=1).toarray()[:,0])
@@ -133,6 +133,7 @@ def intensity_insitu(adata: anndata,
         else:
             sq.gr.spatial_neighbors(adata, radius=radius*2, coord_type="generic", key_added=key_added)
             connect_matrix = adata.obsp[f"{key_added}_connectivities"]
+        connectivities_key = f"{key_added}_connectivities"
     else:
         raise Exception(f"The connectivities_key ({connectivities_key}) dosn't exist in adata.obsp, and radius has not be specified with a value >= 10")
 
@@ -143,8 +144,17 @@ def intensity_insitu(adata: anndata,
     dst = np.where(connect_matrix[l_rows,:][:,r_cols].todense()>0)
     exps = l[l_rows[dst[0]]] + r[r_cols[dst[1]]]
     spatial_exp = sparse.csr_matrix((exps, (l_rows[dst[0]], r_cols[dst[1]])), shape=connect_matrix.shape, dtype=int)
-    adata.obsp[exp_key] = spatial_exp
-    _intensity_show(adata, cells, genes, l, r, key=exp_key, alpha_g=alpha_g, alpha_i=alpha_i, spot_size=spot_size, figsize=figsize, save=save)
+    exp_connectivities_key = f"{exp_key}_{connectivities_key}"
+    adata.obsp[exp_connectivities_key] = spatial_exp
+    neighbors_key = exp_connectivities_key.replace("connectivities", "neighbors")
+    params = adata.uns[connectivities_key.replace("connectivities", "neighbors")]
+    params['weight'] = 'expression'
+    adata.uns[neighbors_key] = {'connectivities_key': exp_connectivities_key,
+                                'distances_key': connectivities_key.replace("connectivities", "distances"),
+                                'params': params,
+                                }
+    
+    _intensity_show(adata, cells, genes, l, r, key=exp_connectivities_key, alpha_g=alpha_g, alpha_i=alpha_i, spot_size=spot_size, figsize=figsize, save=save)
     return spatial_exp.sum()
 
 def intensities_with_radius(adata, pairs = None):

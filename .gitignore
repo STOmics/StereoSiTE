@@ -3,6 +3,7 @@ __pycache__/
 
 #data
 tutorial/data/
+tutorial/test.*
 
 # Distribution / packaging
 .Python
