@@ -122,7 +122,7 @@ def _generate_neighbors_graph(adata:anndata,
                               radius = 400, #int or dict
                               anno:str = "cell2loc_anno"):
         if isinstance(radius, int):
-            sq.gr.spatial_neighbors(adata, radius=radius, coord_type="generic", key_added=str(r))
+            sq.gr.spatial_neighbors(adata, radius=radius, coord_type="generic", key_added=str(radius))
         elif isinstance(radius, dict):
             for LR_type, r in radius.items():
                 sq.gr.spatial_neighbors(adata, radius=r, coord_type='generic', key_added=str(r))
@@ -168,6 +168,8 @@ def preprocess_adata(adata:anndata,
             radius[LRtype] = int(r/scale)
         if not set(LRpairs.keys()).issubset(set(radius.keys())):
             raise Exception("LR types given by parameter radius: {0} don't contain all LR types in the interaction database: {1}".format(LRpairs.keys(), radius.keys()))
+    else:
+        raise Exception("The type of radius threshold parameter must be int or dict, but we got: {0}".format(type(radius)))
     adata = _generate_neighbors_graph(adata, radius=radius, anno = anno)
     return adata, LRpairs, sample_rate
 
