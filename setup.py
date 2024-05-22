@@ -5,7 +5,7 @@ with open("PYPI.rst", "r") as f:
 
 setup(
     name='stereosite',
-    version='1.1.2',
+    version='2.0.0',
     author='LiuXing',
     author_email='liuxing2@genomics.cn',
     description=('Analysis spatial transcriptomics data'),
@@ -14,7 +14,7 @@ setup(
     keywords='spatial cell interaction intensity',
     url="https://github.com/STOmics/StereoSiTE",
 
-    packages=['stereosite'], #需要打包的目录列表
+    packages=find_packages(), #['stereosite'], #需要打包的目录列表
 
     include_package_data=True,
     platforms='any',
@@ -25,6 +25,12 @@ setup(
         'squidpy>=1.1.2',
         'decoupler>=1.4.0',
         'pydeseq2>=0.3.6',
-        'networkx>=3.1'
+        'networkx>=3.1',
+        'tensorly>=0.8.1',
+        'scikit-learn>=1.2.1',
+        'torch>=1.11.0',
+        'igraph>=0.10.4',
+        'pycirclize>=1.1.0',
+        'cell2location==0.1.3'
     ],
 )

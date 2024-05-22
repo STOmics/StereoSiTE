@@ -67,14 +67,16 @@ def _cell_pairs_generate(cells:list, separator:str="_"):
 
 def interaction_matrix_process(interaction_matrix:pd.DataFrame,
                                cells:list,
-                               separator:str="_"
+                               separator:str="-",
+                               cell_lr_separator:str="|",
                                ) -> tuple:
     '''
     Input
         interaction_matrix: DataFrame. Matrix contains interesting interaction in the TME region of interest, index represents cell-cell pairs
                             while column represents ligand-receptor pairs
         cells: List of cell type names, which will be used to separate cells of the cell pair.
-        separator: Separator used to combine sender and receiver cells into a cell pair.
+        separator: Separator used to combine ligand with receptor genes into LR pairs.
+        cell_lr_separator: Separatpr used to combine cells with LR genes.
     Return
         (sectors:dict, links:list, genes:set)
         sectors: The dictionary containing all vertices and their weight. {sender-ligand: value, receiver-receptor: value, ...}
@@ -99,8 +101,8 @@ def interaction_matrix_process(interaction_matrix:pd.DataFrame,
             if value == 0:
                 continue
             ligand, receptor = LR.split(separator, 1)
-            v1 = f"{sender}-{ligand}"
-            v2 = f"{receiver}-{receptor}"
+            v1 = f"{sender}{cell_lr_separator}{ligand}"
+            v2 = f"{receiver}{cell_lr_separator}{receptor}"
             if sender not in sectors1.keys():
                 sectors1[sender] = defaultdict(int)
             if receiver not in sectors2.keys():
@@ -115,14 +117,15 @@ def interaction_matrix_process(interaction_matrix:pd.DataFrame,
     for cell in cells:
         if cell in sectors1.keys():
             for ligand, value in sectors1[cell].items():
-                sectors[f"{cell}-{ligand}"] += value
+                sectors[f"{cell}{cell_lr_separator}{ligand}"] += value
         if cell in sectors2.keys():
             for receptor, value in sectors2[cell].items():
-                sectors[f"{cell}-{receptor}"] += value
+                sectors[f"{cell}{cell_lr_separator}{receptor}"] += value
     return sectors, links, genes
 
 def cells_lr_circos(interaction_matrix:pd.DataFrame,
               cells:list,
+              cell_lr_separator:str="|",
               save:str=None,
               ):
     '''
@@ -131,16 +134,17 @@ def cells_lr_circos(interaction_matrix:pd.DataFrame,
                             The index represents cell_cell pairs and the column represents ligand_receptor pairs.
         cells: The list contains the names of all cell types. This will be used to separate the sender and receiver cells that were 
                 combined to create index names for the interaction_matrix.
+        cell_lr_separator: Separator used to combine cells with LR genes.
         save: File name of the figure that will be saved.
     Return:    
         None
     '''
 
-    sectors, links, genes = interaction_matrix_process(interaction_matrix, cells)
+    sectors, links, genes = interaction_matrix_process(interaction_matrix, cells, cell_lr_separator=cell_lr_separator)
 
     cell_groups = defaultdict(list)
     for key in sectors.keys():
-        cell, gene = key.split("-", 1)
+        cell, gene = key.split(cell_lr_separator, 1)
         cell_groups[cell].append(key)
     group_sizes = [len(value) for key, value in cell_groups.items()]
 
@@ -155,7 +159,7 @@ def cells_lr_circos(interaction_matrix:pd.DataFrame,
     gene_color_palette = new_cmap.colors
     gene_colors = dict(zip(sorted(list(genes)), gene_color_palette))
 
-    lr_links = sorted(list(set([(x[0].split("-", 1)[1], x[1].split("-", 1)[1]) for x in links])))
+    lr_links = sorted(list(set([(x[0].split(cell_lr_separator, 1)[1], x[1].split(cell_lr_separator, 1)[1]) for x in links])))
     new_cmap = ListedColormap(cmap1.colors + cmap2.colors, N=len(lr_links))
     link_color_palette = new_cmap.colors
     link_colors = dict(zip(lr_links, link_color_palette))
@@ -167,7 +171,7 @@ def cells_lr_circos(interaction_matrix:pd.DataFrame,
     #ColorCycler.set_cmap("Set3")
     for sector in circos.sectors:
         track = sector.add_track(r_lim=(90, 95))
-        track.axis(fc=gene_colors[sector.name.split("-", 1)[1]])
+        track.axis(fc=gene_colors[sector.name.split(cell_lr_separator, 1)[1]])
         #track.text(sector.name.split("-", 1)[1], fontsize=5, r=92, orientation="vertical")
 
     #ColorCycler.set_cmap("tab10")
@@ -179,7 +183,7 @@ def cells_lr_circos(interaction_matrix:pd.DataFrame,
 
     #Plot links
     for sender, receiver, value in links:
-        ligand, receptor = sender.split("-", 1)[1], receiver.split("-", 1)[1]
+        ligand, receptor = sender.split(cell_lr_separator, 1)[1], receiver.split(cell_lr_separator, 1)[1]
         circos.link((sender, sectors[sender]-value, sectors[sender]), (receiver, sectors[receiver]-value, sectors[receiver]), color=link_colors[(ligand, receptor)], direction=1)
         sectors[sender] -= value
         sectors[receiver] -= value
