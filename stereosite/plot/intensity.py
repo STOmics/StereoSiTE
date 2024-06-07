@@ -10,6 +10,7 @@ import os, sys
 import anndata
 import scanpy as sc
 import squidpy as sq
+import math
 import matplotlib.pyplot as plt
 from scipy import sparse
 import numpy as np
@@ -21,7 +22,8 @@ def _intensity_show(LRadata: anndata,
                     genes: list,
                     l: np.ndarray,
                     r: np.ndarray,
-                    key: str = 'expression_spatial_connectivities',
+                    key: str = 'expression_spatial_distances',
+                    anno = "cell2loc_anno",
                     alpha_g:float = 0.5,
                     alpha_i:float = 0.4,
                     spot_size:float = 2,
@@ -33,7 +35,7 @@ def _intensity_show(LRadata: anndata,
     df = pd.DataFrame()
     df['x'] = LRadata.obsm["spatial"][:,0].astype(int)
     df['y'] = LRadata.obsm["spatial"][:,1].astype(int)
-    df['intensity'] = LRadata.obsp[key].sum(axis=1).A1*(LRadata.obs['cell2loc_anno'].isin(cells).any())
+    df['intensity'] = LRadata.obsp[key].sum(axis=1).A1*(LRadata.obs[anno].isin(cells).any())
     df[genes[0]] = l
     df[genes[1]] = r
     colors = ['tab:blue', 'tab:orange', 'tab:red']
@@ -68,8 +70,9 @@ def intensity_insitu(adata: anndata,
                   cells: list,
                   genes: list,
                   anno: str= 'cell2loc_anno',
-                  radius: int = 0,
-                  connectivities_key: str = "spatial_connectivities",
+                  radius: float = 0.0,
+                  distance_coefficient:float = 0.0,
+                  connectivities_key: str = "spatial_distances",
                   complex_process_model: str = 'mean',
                   alpha_g:float = 0.5,
                   alpha_i:float = 0.4,
@@ -91,7 +94,10 @@ def intensity_insitu(adata: anndata,
     anno
         annotation key, default=cell2loc_anno.
     radius
-        radius threshold when constructing nearest neighbor graph. Only be used when the neighbor graph doesn't exist
+        radius threshold when constructing nearest neighbor graph. Only be used when the neighbor graph doesn't exist.
+    distance_coefficient
+        Consider the distance as one of the factor that influence the interaction intensity using the exponential decay formular: C=C0*e^(-k*d).
+        The parameter defines the k value in the formular. Default=0, means distance would not influence the interaction intensity.
     connectivities_key
         obtain the constructed nearest neighbor graph in adata.obsp[connectivities_key]. If this doesn't exist, construct
         the neighbor graph with specified radius
@@ -128,33 +134,36 @@ def intensity_insitu(adata: anndata,
         connect_matrix = adata.obsp[connectivities_key]
     elif radius > 10:
         key_added = f"{radius}um"
-        if f"{key_added}_connectivities" in adata.obsp.keys():
-            connect_matrix = adata.obsp[f"{key_added}_connectivities"]
+        if f"{key_added}_distances" in adata.obsp.keys():
+            connect_matrix = adata.obsp[f"{key_added}_distances"]
         else:
             sq.gr.spatial_neighbors(adata, radius=radius*2, coord_type="generic", key_added=key_added)
-            connect_matrix = adata.obsp[f"{key_added}_connectivities"]
-        connectivities_key = f"{key_added}_connectivities"
+            connect_matrix = adata.obsp[f"{key_added}_distances"]
+        connectivities_key = f"{key_added}_distances"
     else:
-        raise Exception(f"The connectivities_key ({connectivities_key}) dosn't exist in adata.obsp, and radius has not be specified with a value >= 10")
+        raise Exception(f"The distances_key ({connectivities_key}) dosn't exist in adata.obsp, and radius has not be specified with a value >= 10")
 
     l = l.values
     r = r.values
     l_rows = np.where(l > 0)[0]
     r_cols = np.where(r > 0)[0]
-    dst = np.where(connect_matrix[l_rows,:][:,r_cols].todense()>0)
-    exps = l[l_rows[dst[0]]] + r[r_cols[dst[1]]]
+    sub_connect_matrix=connect_matrix[l_rows,:][:,r_cols].todense()
+    dst = np.where(sub_connect_matrix>0)
+    distances = sub_connect_matrix[dst]
+    exps = l[l_rows[dst[0]]]*[math.exp(-distance_coefficient*d) for d in distances.A1] + r[r_cols[dst[1]]]
+    
     spatial_exp = sparse.csr_matrix((exps, (l_rows[dst[0]], r_cols[dst[1]])), shape=connect_matrix.shape, dtype=int)
     exp_connectivities_key = f"{exp_key}_{connectivities_key}"
     adata.obsp[exp_connectivities_key] = spatial_exp
-    neighbors_key = exp_connectivities_key.replace("connectivities", "neighbors")
-    params = adata.uns[connectivities_key.replace("connectivities", "neighbors")]
+    neighbors_key = exp_connectivities_key.replace("distances", "neighbors")
+    params = adata.uns[connectivities_key.replace("distances", "neighbors")]
     params['weight'] = 'expression'
-    adata.uns[neighbors_key] = {'connectivities_key': exp_connectivities_key,
-                                'distances_key': connectivities_key.replace("connectivities", "distances"),
+    adata.uns[neighbors_key] = {'connectivities_key': connectivities_key.replace("distances", "connectivities"),
+                                'distances_key': exp_connectivities_key,
                                 'params': params,
                                 }
     
-    _intensity_show(adata, cells, genes, l, r, key=exp_connectivities_key, alpha_g=alpha_g, alpha_i=alpha_i, spot_size=spot_size, figsize=figsize, save=save)
+    _intensity_show(adata, cells, genes, l, r, key=exp_connectivities_key, anno=anno, alpha_g=alpha_g, alpha_i=alpha_i, spot_size=spot_size, figsize=figsize, save=save)
     return spatial_exp.sum()
 
 def intensities_with_radius(adata, pairs = None):
