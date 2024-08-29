@@ -125,6 +125,9 @@ def interaction_matrix_process(interaction_matrix:pd.DataFrame,
 
 def cells_lr_circos(interaction_matrix:pd.DataFrame,
               cells:list,
+              cell_color_palette:list=None,
+              gene_color_palette:list=None,
+              link_color_palette:list=None,
               cell_lr_separator:str="|",
               save:str=None,
               ):
@@ -152,16 +155,19 @@ def cells_lr_circos(interaction_matrix:pd.DataFrame,
     cmap1 = plt.get_cmap('tab20b')
     cmap2 = plt.get_cmap('tab20c')
     
-    cell_color_palette = plt.get_cmap("Set3", len(cells)).colors
+    if cell_color_palette == None:
+        cell_color_palette = plt.get_cmap("Set3", len(cells)).colors
     cell_colors = dict(zip(cells, cell_color_palette))
 
-    new_cmap = ListedColormap(cmap1.colors + cmap2.colors, N=len(genes))
-    gene_color_palette = new_cmap.colors
+    if gene_color_palette == None:
+        new_cmap = ListedColormap(cmap1.colors + cmap2.colors, N=len(genes))
+        gene_color_palette = new_cmap.colors
     gene_colors = dict(zip(sorted(list(genes)), gene_color_palette))
 
     lr_links = sorted(list(set([(x[0].split(cell_lr_separator, 1)[1], x[1].split(cell_lr_separator, 1)[1]) for x in links])))
-    new_cmap = ListedColormap(cmap1.colors + cmap2.colors, N=len(lr_links))
-    link_color_palette = new_cmap.colors
+    if link_color_palette == None:
+        new_cmap = ListedColormap(cmap1.colors + cmap2.colors, N=len(lr_links))
+        link_color_palette = new_cmap.colors
     link_colors = dict(zip(lr_links, link_color_palette))
 
     spaces = calc_group_spaces(group_sizes, space_bw_group=10, space_in_group=1)

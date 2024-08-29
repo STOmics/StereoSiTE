@@ -37,7 +37,7 @@ def umap(adata: anndata,
         umap_result = adata.uns['CN']['umap']
         leiden_cluster = adata.uns['CN']['leiden_cluster']
         fig, ax = plt.subplots(figsize=figsize)
-        sns.scatterplot(x = umap_result[:, 0], y = umap_result[:, 1], hue = leiden_cluster, palette = 'tab20', s = 10, ax=ax)
+        sns.scatterplot(x = umap_result[:, 0], y = umap_result[:, 1], hue = leiden_cluster, palette = palette, s = 10, ax=ax)
         ax.set_xlabel('UMAP1')
         ax.set_ylabel('UMAP2')
         ax.set_title('Cellular_Neighborhood')

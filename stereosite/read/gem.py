@@ -164,7 +164,10 @@ class Gem_Reader():
         """
 
         mask = cv2.imread(cell_mask, -1)
-        _, labels = cv2.connectedComponents(mask)
+        if (mask.max() == 1):
+            _, labels = cv2.connectedComponents(mask)
+        else:
+            labels = mask
         tissuedf = pd.DataFrame()
         dst = np.nonzero(labels)
 
