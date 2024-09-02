@@ -11,6 +11,7 @@ def lr_link_graph_generate(interaction_matrix:pd.DataFrame,
                   separator:str="-",
                   cell_lr_separator="|",
                   reducer:int=3,
+                  cell_color_palette:list=[],
                   ) -> Graph:
     '''
     Input:
@@ -25,8 +26,11 @@ def lr_link_graph_generate(interaction_matrix:pd.DataFrame,
         
     '''
     #generate color palette for cells and links
-    cell_palette = 'Set3'
-    cell_colors = dict(zip(cells, [tuple(x[0:3]) for x in plt.get_cmap(cell_palette, len(cells)).colors]))
+    if len(cell_color_palette) < len(cells):
+        cell_palette = 'Set3'
+        cell_colors = dict(zip(cells, [tuple(x[0:3]) for x in plt.get_cmap(cell_palette, len(cells)).colors]))
+    else:
+        cell_colors = dict(zip(cells, cell_color_palette[:len(cells)]))
 
     #transfer matrix into igraph
     sectors, links, genes = interaction_matrix_process(interaction_matrix, cells, separator=separator, cell_lr_separator=cell_lr_separator)
