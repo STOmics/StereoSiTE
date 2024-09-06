@@ -311,7 +311,7 @@ def sankey_3d(data:pd.DataFrame, color_dict=None, left_labels = None, right_labe
 
 def sankey_2d(data:pd.DataFrame, color_dict=None, left_labels = None, right_labels = None,
               aspect=4, fontsize=4, save=None, close_plot=False, patch_alpha:float=0.99, link_alpha:float=0.65,
-              interval:float=0.0
+              interval:float=0.0, strip_color='left',
               ):
     '''
     Make Sankey Diagram
@@ -346,11 +346,12 @@ def sankey_2d(data:pd.DataFrame, color_dict=None, left_labels = None, right_labe
     else:
         _check_data_matches_labels(right_labels, data['right'])
 
-    color_dict = {}
-    palette = 'tab20'
-    colorPalette = sns.color_palette(palette, len(allLabels))
-    for i, label in enumerate(allLabels):
-        color_dict[label] = colorPalette[i]
+    if color_dict == None:
+        color_dict = {}
+        palette = 'tab20'
+        colorPalette = sns.color_palette(palette, len(allLabels))
+        for i, label in enumerate(allLabels):
+            color_dict[label] = colorPalette[i]
 
     #Determine widths of individual strips
     from collections import defaultdict
@@ -432,7 +433,10 @@ def sankey_2d(data:pd.DataFrame, color_dict=None, left_labels = None, right_labe
     # Plot strips
     for leftLabel in left_labels:
         for rightLabel in right_labels:
-            labelColor = leftLabel
+            if strip_color == 'left':
+                labelColor = leftLabel
+            else:
+                labelColor = rightLabel
             if len(data[(data.left == leftLabel) & (data.right == rightLabel)]) >0 :
                 # Create array of y values for each strip, half at let value,
                 # half at right
