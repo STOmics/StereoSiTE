@@ -74,7 +74,7 @@ def mask_coloring(adata: anndata, mask_file: str,
     width = 10000
     high = 1000
     legend = np.zeros([high*len(cells), width,3])
-    legend.fill(255)
+    #legend.fill(0)
     font = cv2.FONT_HERSHEY_SIMPLEX
     fontScale = 20  
     # Line thickness of 40 px
@@ -86,7 +86,7 @@ def mask_coloring(adata: anndata, mask_file: str,
         point = (int(width/8), int((i+0.4)*high))
         cv2.circle(legend, point, pointSize, color, pointSize*2)
         org = (int(width/5), int((i+0.6)*high))
-        legend = cv2.putText(legend, cell, org, font, fontScale, (0, 0, 0), thickness, cv2.LINE_AA)
+        legend = cv2.putText(legend, cell, org, font, fontScale, (255, 255, 255), thickness, cv2.LINE_AA)
     
     if save != None:
         out_dir = os.path.dirname(save)

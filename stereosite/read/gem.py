@@ -22,6 +22,7 @@ import gzip
 import tifffile
 import cv2
 import tifffile
+import h5py
 
 class Gem_Reader():
     """
@@ -30,7 +31,7 @@ class Gem_Reader():
     Parameters
     ----------
     gem_file
-        gene expression matrix (gem) file path. 
+        gene expression matrix (gem or gef) file path. 
         Gem file should include at least 4 columns: geneID, x, y, MIDCount. MIDCount indicates gene expression count, and can be specified by parameter count_key
         If cell segmentation has been done, gen file is consist of 5 columns: geneID, x, y, MIDCount, label. transcripts with same label belong to the same single cell.
     tissue_mask
@@ -39,24 +40,35 @@ class Gem_Reader():
         column name of gene expression count in gem file
     cell_label_key
         column name of cell labels in gem file with single-cell segmentation.
+    gene_name_key
+        column name of gene name or gene ID in the gem file
     """
     def __init__(self,
                  gem_file: str,
                  tissue_mask: str = None,
                  count_key: str = 'MIDCount',
-                 cell_label_key: str = 'label'):
+                 cell_label_key: str = 'label',
+                 gene_name_key: str = 'geneID',
+                 ):
         self.gem_file = gem_file
         self.tissue_mask = tissue_mask
         self.count_key = count_key
         self.cell_label_key = cell_label_key
-        self._read_gem()
+        self.gene_name_key = gene_name_key
+        if self.gem_file.endswith(("gem.gz", "gem")):
+            self._read_gem()
+        elif self.gem_file.endswith("gef"):
+            self._read_gef()
+        else:
+            print ("The file format of input gene expression file is incorrect. Only gem, gem.gz and gef file are supported.")
+            sys.exit()
 
     def _read_gem(self) -> pd.DataFrame:
         """
-        Read gene expression matrix from the given file. And extract data under tissue covered region if tissue mask file was given
+        Read gene expression matrix from the given gem file. And extract data under tissue covered region if tissue mask file was given.
         """
 
-        columntypes = {"geneID": 'category', 
+        columntypes = {self.gene_name_key: 'category', 
                        "x": int, 
                        'y': int, 
                        self.count_key: int,
@@ -64,8 +76,8 @@ class Gem_Reader():
     
         gem = pd.read_csv(self.gem_file, sep="\t", quoting=csv.QUOTE_NONE, comment="#", dtype=columntypes)
 
-        gem.rename(columns={self.count_key : 'counts',
-                            self.cell_label_key: 'label'})
+        #gem.rename(columns={self.count_key : 'counts',
+        #                    self.cell_label_key: 'label'})
         
         #extract gene expression under tissue covered region
         if self.tissue_mask != None:
@@ -75,6 +87,33 @@ class Gem_Reader():
                 print ("WARMING: mask is out of bounds")
                 gem = gem.loc[(gem['x'] < maxX)&(gem['y'] < maxY)]
             gem = gem.loc[tissue_mask[gem['y'], gem['x']] > 0]
+        self.gem = gem
+
+    def _read_gef(self) -> pd.DataFrame:
+        """
+        Read gene expression matrix from the given gef file. And extract data under tissue covered region if tissue mask file was given.
+        """
+        gef = h5py.File(self.gem_file, 'r')
+        total_len = gef['geneExp']['bin1']['expression'].len()
+        geneNames = gef['geneExp']['bin1']['gene'][self.gene_name_key].astype('str')
+        offsets = gef['geneExp']['bin1']['gene']['offset']
+        expand_geneNames = []
+        for i in range(len(offsets)):
+            if i == len(offsets)-1:
+                extends = total_len - offsets[i]
+            else:
+                extends = offsets[i+1] - offsets[i]
+            expand_geneNames.extend([geneNames[i]]*extends)
+        gem = pd.DataFrame(gef['geneExp']['bin1']['expression'][:])
+        gem[self.gene_name_key] = pd.Series(expand_geneNames, dtype='category')
+        if self.tissue_mask !=None:
+            tissue_mask = tifffile.imread(self.tissue_mask)
+            maxY, maxX = tissue_mask.shape
+            if maxX > gem['x'].max() or maxY > gem['y'].max():
+                print ("WARMING: mask is out of bounds")
+                gem = gem.loc[(gem['x']<maxX)&(gem['y']<maxY)]
+            gem = gem.loc[tissue_mask[gem['y'], gem['x']]>0]
+        gef.close()    
         self.gem = gem
 
     def gem2anndata(self, bin_size=50) -> anndata:
@@ -99,12 +138,12 @@ class Gem_Reader():
         self.gem['cell'] = self.gem['x'].astype(str) + "-" + self.gem['y'].astype(str)
 
         cells = self.gem['cell'].unique()
-        genes = self.gem['geneID'].unique()
+        genes = self.gem[self.gene_name_key].unique()
     
         cells_dict = dict(zip(cells, range(0, len(cells))))
         genes_dict = dict(zip(genes, range(0, len(genes))))
         rows = self.gem['cell'].map(cells_dict)
-        cols = self.gem['geneID'].map(genes_dict)
+        cols = self.gem[self.gene_name_key].map(genes_dict)
         expMtx = sparse.csr_matrix((self.gem[self.count_key].values, (rows, cols)), shape=(cells.shape[0], genes.shape[0]), dtype=np.int32)
 
         obs = pd.DataFrame(index = cells)
@@ -129,11 +168,11 @@ class Gem_Reader():
         gem = self.gem[self.gem[self.cell_label_key]!=0]
     
         cells = gem[self.cell_label_key].unique()
-        genes = gem['geneID'].unique()
+        genes = gem[self.gene_name_key].unique()
         cells_dict = dict(zip(cells, range(0, len(cells))))
         genes_dict = dict(zip(genes, range(0, len(genes))))
         rows = gem[self.cell_label_key].map(cells_dict)
-        cols = gem['geneID'].map(genes_dict)
+        cols = gem[self.gene_name_key].map(genes_dict)
 
         expMtx = sparse.csr_matrix((gem[self.count_key].values, (rows, cols)), shape=(cells.shape[0], genes.shape[0]), dtype=np.int32)
 

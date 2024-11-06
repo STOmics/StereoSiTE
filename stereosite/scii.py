@@ -476,6 +476,45 @@ def intensities_with_radius(adata: anndata,
     else:
         adata.uns['intensities_with_radius'] = plot_df
 
+def interaction_select(interaction:dict,
+                        cell_pairs:list=[],
+                        filter_genes:list=[],
+                        pvalue_threshold:float=0.05,
+                        intensities_range=(0, np.inf),
+                        ):
+    '''
+    Input:
+        interaction: dict{'pvalues': pd.DataFrame, 'intensities': pd.DataFrame}. Result of SCII.
+        cell_pairs: [(celltype1, celltype2), (celltype1, celltype3), ...]. Interested cell pairs you want to visualize.
+        filter_genes: [gene1, gene2, ...]. List of genes that you want to discard from the scii result.
+        pvalue_threshold: Threshold of pvalue to filter the result. default=0.05
+        intensities_range: Only retain the interaction result with intensity value between the intensities range.
+    '''
+    filter_interaction = {
+        'intensities': interaction['intensities'].loc[:,cell_pairs],
+        'pvalues': interaction['pvalues'].loc[:, cell_pairs],
+    }
+    filter_interaction['intensities'] = filter_interaction['intensities'][[all([all([x not in filter_genes for x in y.split("_")]) for y in z]) for z in filter_interaction['intensities'].index]]
+    filter_interaction['pvalues'] = filter_interaction['pvalues'][[all([all([x not in filter_genes for x in y.split("_")]) for y in z]) for z in filter_interaction['pvalues'].index]]
+    filter_mask = (filter_interaction['pvalues'] < pvalue_threshold) & (filter_interaction['intensities']>intensities_range[0]) & (filter_interaction['intensities']<intensities_range[1])
+    filter_interaction['intensities'] = filter_interaction['intensities'][filter_mask].dropna(axis=0, how='all')
+    filter_interaction['pvalues'] = filter_interaction['pvalues'][filter_mask].dropna(axis=0, how='all')
+    return filter_interaction
+
+def interaction_pathway_select(interaction:dict,
+                               pathway_name:list=None,
+                               interactiondb_file:str=None,
+                               pathway_label:str="pathway_name",
+                               ligand_label:str="ligand",
+                               receptor_label:str="receptor",
+                               ):
+    interactiondb = pd.read_csv(interactiondb_file)
+    index = list(set([tuple(x) for x in interactiondb[interactiondb[pathway_label].isin(pathway_name)][[ligand_label, receptor_label]].values]) & set(interaction['intensities'].index))
+    pathway_interaction = {'intensities': interaction['intensities'].loc[index,:],
+                           'pvalues': interaction['pvalues'].loc[index,:],
+                           }
+    return pathway_interaction
+
 def main():
     """
     This program can calculate the spatial cell interaction intensity

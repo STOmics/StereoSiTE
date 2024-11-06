@@ -329,7 +329,8 @@ def evaluate_ranks(interactiontensor: InteractionTensor=None,
     logg.info(f"Finish eval SCII tensor rank - time cost {(((time_end - time_start) / 60) / 60)} h")
     return mat1
 
-def SCII_Tensor(interactiontensor: InteractionTensor=None, rank: list=[8,8,8], random_state: int=32, init: str="svd", n_iter_max: int=100, backend: str="pytorch",
+def SCII_Tensor(interactiontensor: InteractionTensor=None, rank: list=[8,8,8], random_state: int=32, init: str="svd", n_iter_max: int=100, normalize_factors:bool=True,
+                backend: str="pytorch",
                 device='cuda:0'):
     """
     Perform tensor factorization and analysis on a Cell-Cell Interaction (CCI) matrix.
@@ -361,7 +362,7 @@ def SCII_Tensor(interactiontensor: InteractionTensor=None, rank: list=[8,8,8], r
     tl.set_backend(backend)
 
     tensor = tl.tensor(interactiontensor.cci_matrix, device=device)
-    core, factors = non_negative_tucker(tensor, rank=rank, random_state = random_state, init=init, n_iter_max=n_iter_max)
+    core, factors = non_negative_tucker(tensor, rank=rank, random_state = random_state, init=init, n_iter_max=n_iter_max, normalize_factors=normalize_factors)
 
     factors = [x.data.cpu().numpy() for x in factors]
     core = core.data.cpu().numpy()
@@ -559,8 +560,8 @@ def interaction_select_multiple(interactiontensor: InteractionTensor=None, sampl
     return mean_mt
 
 def interaction_select(interactiontensor: InteractionTensor=None, 
-                            tme_module: int=0, cellpair_module: int=0, lrpair_module: int=0, 
-                            n_lr: int=15, n_cc: int=5, 
+                       tme_module: int=0, cellpair_module: int=0, lrpair_module: int=0, 
+                       n_lr: int=15, n_cc: int=5, 
                       ):
     """
     Plot the mean intensity heatmap for a specific TME module, CellPair module, and LRPair module.
@@ -678,3 +679,14 @@ def merge_data(interactiontensor_list: list=None, patient_id: list=None) -> Inte
     tmp.cci_matrix = final_mt
  
     return tmp
+
+def core_normalization(core, filter_threshold:bool=True, feature_range:tuple=(0, 1)):
+    minv, maxv = core.min(), core.max()
+    core_norm = (core-minv)/(maxv - minv)
+    core_norm = core_norm*(feature_range[1] - feature_range[0]) + feature_range[0]
+    if isinstance(filter_threshold, bool) and filter_threshold:
+        filter_threshold=(feature_range[1]-feature_range[0])/core.shape[2]
+        core_norm[core_norm < filter_threshold] = 0
+    elif isinstance(filter_threshold, float):
+        core_norm[core_norm < filter_threshold] = 0
+    return core_norm

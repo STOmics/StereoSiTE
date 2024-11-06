@@ -309,15 +309,17 @@ class Cell2location():
         cellsRate = cellsCount/cellsCount.sum()*100
         cellsdf = pd.concat([cellsCount, cellsRate], axis=1)
         cellsdf.columns = ['count', 'rate']
+        colors_dict = dict(zip(adata_vis.obs[anno].cat.categories, adata_vis.uns[f'{anno}_colors']))
+        cellsdf['color'] = cellsdf.index.map(colors_dict)
         cellsdf.to_csv(f"{self.run_name}/{anno}_cell_count.tsv", sep="\t")
         plt.figure(figsize=(8, 8))
-        cellsdf['count'].plot(kind = 'barh')
+        cellsdf['count'].plot(kind = 'barh', color=cellsdf['color'])
         i = 0
         sum = cellsdf['count'].sum()
         for _, v in cellsdf['rate'].items():
             plt.text(sum*(v+2)/100, i, '%.2f' % v, ha='center', va='bottom', fontsize=11)
             i+=1
-        plt.savefig(f"{self.figures}/{anno}_cell_count.png")
+        plt.savefig(f"{self.figures}/{anno}_cell_count.png", bbox_inches='tight')
         plt.clf()
         plotcol = 4
         cells = adata_vis.obs[anno].unique()
@@ -333,7 +335,7 @@ class Cell2location():
             sc.pl.spatial(adata_vis, img_key="hires", color=anno, groups = [cell], spot_size=spot_size, show=False, ax = ax, title ="{0} ({1})".format(cell, cellsCount.loc[cell]), legend_loc=None)
             ax.set_xlabel("")
             ax.set_ylabel("")
-        plt.savefig(f"{self.figures}/{anno}_split.png")
+        plt.savefig(f"{self.figures}/{anno}_split.png", bbox_inches='tight')
         plt.clf()
 
 def main():

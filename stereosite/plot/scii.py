@@ -212,7 +212,7 @@ def ligrec(
     source_groups = None,
     target_groups = None,
     intensities_range = (-np.inf, np.inf),
-    pvalue_threshold = 1.0,
+    pvalue_threshold = 0.05,
     remove_empty_interactions = True,
     remove_nonsig_interactions = False,
     dendrogram = None,
