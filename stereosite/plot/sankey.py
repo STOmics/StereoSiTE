@@ -223,12 +223,12 @@ def sankey_3d(data_l:pd.DataFrame, data_r:pd.DataFrame,
             color_dict[label] = module_color
         for label in right_labels:
             color_dict[label] = module_color
-    elif isinstance(cmap, dict): 
+    elif isinstance(cmap, dict):
+        color_dict=cmap
         missing = [label for label in allLabels if label not in color_dict.keys()]
         if missing:
             msg = "The cmap parameter is missing values for the following labels: {}".format(', '.join(missing))
             raise ValueError(msg)
-        color_dict=cmap
     else:
         raise ValueError("cmap must be string representing the matplotlib's colormap or dict")
 
