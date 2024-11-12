@@ -224,7 +224,7 @@ def sankey_3d(data_l:pd.DataFrame, data_r:pd.DataFrame,
         for label in right_labels:
             color_dict[label] = module_color
     elif isinstance(cmap, dict):
-        color_dict=cmap
+        color_dict = cmap
         missing = [label for label in allLabels if label not in color_dict.keys()]
         if missing:
             msg = "The cmap parameter is missing values for the following labels: {}".format(', '.join(missing))

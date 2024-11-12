@@ -349,6 +349,8 @@ def cells_circos(interaction_matrix:pd.DataFrame,
 
     #Generate the matrix that will be used to draw circos
     if scii_tensor:
+        if not isinstance(cells, list):
+            cells = [cell for cell in cells]
         if cells==None:
             raise Exception("When scii_tensor is True, the cells parameter must be given")
         cci_df = norm_interaction_matrix.sum(axis=1).to_frame()

@@ -58,7 +58,7 @@ def lr_link_graph_generate(interaction_matrix:pd.DataFrame,
     vertices_color = [cell_colors[x.split(cell_lr_separator)[0]] for x in vertices]
     vertices_dict = dict(zip(vertices, range(len(vertices))))
     edges_index = [(vertices_dict[x[0]], vertices_dict[x[1]]) for x in links]
-    lr_links = set([(x[0].split(cell_lr_separator)[1], x[1].split(cell_lr_separator)[1]) for x in links])
+    lr_links = sorted(set([(x[0].split(cell_lr_separator)[1], x[1].split(cell_lr_separator)[1]) for x in links]))
     if isinstance(lr_color_palette, str):
         link_color_palette = [tuple(x[0:3]) for x in plt.get_cmap(lr_color_palette, len(lr_links)).colors]
     elif isinstance(lr_color_palette, list):
@@ -111,6 +111,8 @@ def cell_graph_generate(interaction_matrix:pd.DataFrame,
     norm_interaction_matrix = ((interaction_matrix - scii_min)/(scii_max - scii_min)*100).apply(round).astype(int)
 
     if scii_tensor:
+        if not isinstance(cells, list):
+            cells = [cell for cell in cells]
         if cells==None:
             raise Exception("When scii_tensor is True, the cells parameter must be given")
         cci_df = norm_interaction_matrix.sum(axis=1).to_frame()
@@ -150,7 +152,7 @@ def cell_graph_generate(interaction_matrix:pd.DataFrame,
 
     return g
 
-def cell_lr_grap_plot(g:Graph,
+def cell_lr_graph_plot(g:Graph,
               separator:str='-',
               cell_lr_separator:str="|",
               layout_type:str='kk',
