@@ -98,10 +98,11 @@ def cn_cellbin(adata: anndata,
     bin_cor =[str(x[0]) + "-" + str(x[1]) for x in ((adata.obsm['spatial']//bin_size)*bin_size+(bin_size/2)).astype(int)]
     adata.obs['bin_cor'] = bin_cor
     groups = adata.obs[anno].groupby(adata.obs['bin_cor'])
-    cellbin_count = pd.DataFrame(columns = adata.obs['cell2loc_anno'].unique())
+    cellbin_count = pd.DataFrame(index=list(set(bin_cor)), columns = adata.obs[anno].unique())
     for group in groups:
-        pct = group[1].value_counts()
-        cellbin_count.loc[group[0]] = pct.values
+        for cell in cellbin_count.columns:
+            cell_count = group[1][group[1]==cell].shape[0]
+            cellbin_count.loc[group[0], cell] = cell_count
     
     from sklearn.neighbors import NearestNeighbors
     #construct nearest neighbor graph

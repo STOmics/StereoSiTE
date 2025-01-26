@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from scipy import sparse
+from itertools import product
 import math
 from tqdm.notebook import tqdm
 from multiprocessing import Pool
@@ -160,7 +161,8 @@ def preprocess_adata(adata:anndata,
 
     #generate LRpairs list from interactions
     LRpairs, adata = _generate_LRpairs(interactionDB, adata, LR_anno=LR_anno)
-    logging.info(f"generate LRpairs finished, and get {len(LRpairs)} LRpair")
+    LRpair_number = sum([len(x) for x in LRpairs.values()])     
+    logging.info(f"generate LRpairs finished, and get {LRpair_number} LRpair")
     #change the radius unit from um to dnb and Check if the LR types given by parameter contians all LR types in the interaction database
     if isinstance(radius, int):
         radius = int(radius/scale)
@@ -257,10 +259,8 @@ def _result_combined(result_list:list, #list<np.array>
                      LRpairs:np.array,
                      cell_types:np.array
                      ) -> pd.DataFrame:
-    columns = []
-    for sender in cell_types:
-        for receiver in cell_types:
-            columns.append([sender, receiver])
+    
+    columns = list(product(cell_types, repeat=2))
     my_columns = pd.MultiIndex.from_tuples(columns, names=['cluster1', 'cluster2'])
     my_index = pd.MultiIndex.from_tuples(LRpairs, names=["source", "target"])
     values = [np.ravel(x) for x in result_list]
@@ -354,7 +354,7 @@ def intensities_count(adata:anndata,
                 k = distance_coefficient[LRtype]
             else:
                 raise Exception("the type of distance_threshold must be int, float or dict, but get:{0}".format(type(distance_coefficient)))
-            for LRpair in LRpair_list:
+            for LRpair in tqdm(LRpair_list):
                 LRpairs_lists.append(LRpair)
                 results.append(_LRpair_process(adata, LRpair, connect_matrix, cellTypeIndex,cellTypeNumber, seed, n_perms, complex_process=complex_process_model, distance_coefficient=k))
     else:

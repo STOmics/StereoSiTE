@@ -7,7 +7,7 @@ from scipy import sparse
 import time
 import tensorly as tl
 from tensorly.decomposition import non_negative_tucker, non_negative_tucker_hals
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 import logging as logg
 import torch
 import random
@@ -53,7 +53,12 @@ class InteractionTensor():
 def build_SCII(interactiontensor: InteractionTensor=None, radius = 200, #int or dict 
                scale:float=0.5,
                coord_type: str="generic",
-               window_size: int=400, anno_col: str='cell2loc_anno', use_raw: bool=True, interactionDB: str=None) -> list:
+               window_size: int=400, 
+               anno_col: str='cell2loc_anno', 
+               use_raw: bool=True, 
+               interactionDB: str=None,
+               scale_factor=1000000
+               ) -> list:
     """
     Construct a Spatial Cellular Interaction Intensity (SCII) matrix based on spatial transcriptomics data.
 
@@ -121,19 +126,30 @@ def build_SCII(interactiontensor: InteractionTensor=None, radius = 200, #int or 
     else:
         raise Exception("radius type must be int or dict, but we got {0}".format(type(radius)))
  
+    cell_types = adata.obs[anno_col].unique()
+    cell_type_dict = dict(zip(cell_types, range(0, len(cell_types))))
+    cellTypeIndex = adata.obs[anno_col].map(cell_type_dict).astype(int).values
+    cellTypeNumber = len(cell_types)
+
     exp_connect_list = []
     filter_LRpairs = []
+    intensities_list = []
     for LRtype, LRpair_list in filter_LRpairs_dict.items():
-        if isinstance(radius, int):
+        if isinstance(radius, int) or isinstance(radius, float):
             connect_matrix = adata_sub.obsp[f"{radius}_connectivities"]
         elif isinstance(radius, dict):
             if not LRtype in radius.keys():
                 raise Exception(f"The radius threshold of LRtype {LRtype} in the interactionDB was not specified by the radius parameter: {radius}")
             connect_matrix = adata_sub.obsp[f"{radius[LRtype]}_connectivities"]
+        else:
+            raise Exception("radius type must be int or dict, but we got {0}".format(type(radius)))
         for genes in LRpair_list:
             filter_LRpairs.append(genes)
             exp_connect_matrix = _get_LR_connect_matrix(adata_sub, genes, connect_matrix)
             exp_connect_list.append(exp_connect_matrix)
+            interaction_matrix = _get_LR_intensity(exp_connect_matrix, cellTypeIndex, cellTypeNumber)
+            intensities_list.append(interaction_matrix)
+    intensity_df = _result_combined(intensities_list, filter_LRpairs, cell_types)
     interactiontensor.filter_LRpair = filter_LRpairs
 
     interactiontensor.exp_connect_list = exp_connect_list
@@ -173,16 +189,19 @@ def build_SCII(interactiontensor: InteractionTensor=None, radius = 200, #int or 
 
             data = exp_connect_list[j].tocsr()[indices[i], :][:, indices[i]].tocoo()
 
-            senders = cellTypeIndex[data.row]
-            receivers = cellTypeIndex[data.col]
-            interaction_matrix = sparse.csr_matrix((data.data, (senders, receivers)), shape=(cellTypeNumber, cellTypeNumber))
+            #senders = cellTypeIndex[data.row]
+            #receivers = cellTypeIndex[data.col]
+            #interaction_matrix = sparse.csr_matrix((data.data, (senders, receivers)), shape=(cellTypeNumber, cellTypeNumber))
+            interaction_matrix = _get_LR_intensity(data, cellTypeIndex, cellTypeNumber)
 
             nonzero_row, nonzero_col = interaction_matrix.nonzero()
             for r in range(len(nonzero_row)):
                 for c in range(len(nonzero_col)):
                     cellpair = get_keys(cell_type_dict, nonzero_row[r])[0] + "_" + get_keys(cell_type_dict, nonzero_col[c])[0]
 
-                    store_mt.loc[cellpair][lr] = interaction_matrix[nonzero_row[r], nonzero_col[c]]
+                    store_mt.at[cellpair, lr] = np.float32(interaction_matrix[nonzero_row[r], nonzero_col[c]])
+            scii = np.float32(intensity_df.loc[tuple(filter_LRpairs[j])].values)
+            store_mt[lr] = store_mt[lr].divide(scii).multiply(scale_factor)
         results.append(store_mt)
 
     interactiontensor.lr_mt_list = results
@@ -312,26 +331,24 @@ def evaluate_ranks(interactiontensor: InteractionTensor=None,
         tensor = tl.tensor(dat)
         tensor = tensor.to("cpu")
 
-    for i in tqdm(range(2,num_cellpair_modules)):
-        for j in range(1,num_TME_modules):
-            # we use NNTD as described in the paper
-
-            if method == 'tucker':
-                facs_overall = non_negative_tucker(tensor,rank=[i,i, j],random_state = 2337, init=init, n_iter_max=n_iter_max)
-                # facs_overall = [factor.cpu() for factor in facs_overall]
-                mat1[j,i] = np.mean((dat- tl.to_numpy(tl.tucker_to_tensor((facs_overall[0],facs_overall[1]))))**2)
-                # mat2[j,i] = np.linalg.norm(dat - tl.to_numpy(tl.tucker_to_tensor((facs_overall[0],facs_overall[1]))) ) / np.linalg.norm(dat)
-            elif method == 'hals':
-                facs_overall = non_negative_tucker_hals(tensor,rank=[i,i, j],random_state = 2337, init=init, n_iter_max=n_iter_max)
-                mat1[j,i] = np.mean((dat- tl.to_numpy(tl.tucker_to_tensor((facs_overall[0],facs_overall[1]))))**2)
+    for i in tqdm(range(2, num_cellpair_modules)):
+        for j in range(1, num_TME_modules):
+            # Use parallel processing if available
+            with torch.cuda.amp.autocast():
+                if method == 'tucker':
+                    facs_overall = non_negative_tucker(tensor, rank=[i, i, j], random_state=2337, init=init, n_iter_max=n_iter_max)
+                elif method == 'hals':
+                    facs_overall = non_negative_tucker_hals(tensor, rank=[i, i, j], random_state=2337, init=init, n_iter_max=n_iter_max)
+                
+                mat1[j, i] = np.mean((dat - tl.to_numpy(tl.tucker_to_tensor((facs_overall[0], facs_overall[1]))))**2)
+    
     interactiontensor.reconstruction_errors = mat1
     time_end=time.time()
     logg.info(f"Finish eval SCII tensor rank - time cost {(((time_end - time_start) / 60) / 60)} h")
     return mat1
 
-def SCII_Tensor(interactiontensor: InteractionTensor=None, rank: list=[8,8,8], random_state: int=32, init: str="svd", n_iter_max: int=100, normalize_factors:bool=True,
-                backend: str="pytorch",
-                device='cuda:0'):
+def SCII_Tensor(interactiontensor: InteractionTensor=None, rank: list=[8,8,8], random_state: int=32, init: str="svd", n_iter_max: int=50, normalize_factors:bool=True,
+                backend: str="pytorch", device='cuda:0'):
     """
     Perform tensor factorization and analysis on a Cell-Cell Interaction (CCI) matrix.
 
@@ -349,7 +366,7 @@ def SCII_Tensor(interactiontensor: InteractionTensor=None, rank: list=[8,8,8], r
     init : str, optional
         Initialization method for tensor factorization, by default 'svd'.
     n_iter_max : int, optional
-        Maximum number of iterations for tensor factorization, by default 100.
+        Maximum number of iterations for tensor factorization, by default 50.
     backend : str, optional
         Backend for tensor operations, by default 'pytorch'.
     device : str, optional
@@ -362,7 +379,10 @@ def SCII_Tensor(interactiontensor: InteractionTensor=None, rank: list=[8,8,8], r
     tl.set_backend(backend)
 
     tensor = tl.tensor(interactiontensor.cci_matrix, device=device)
-    core, factors = non_negative_tucker(tensor, rank=rank, random_state = random_state, init=init, n_iter_max=n_iter_max, normalize_factors=normalize_factors)
+    
+    # Use parallel processing if available
+    with torch.cuda.amp.autocast():
+        core, factors = non_negative_tucker(tensor, rank=rank, random_state=random_state, init=init, n_iter_max=n_iter_max, normalize_factors=normalize_factors)
 
     factors = [x.data.cpu().numpy() for x in factors]
     core = core.data.cpu().numpy()
@@ -435,7 +455,8 @@ def SCII_Tensor_multiple(interactiontensor: InteractionTensor=None, rank: list=[
     tl.set_backend(backend)
     tensor = tl.tensor(interactiontensor.cci_matrix, device=device)
 
-    core, factors = non_negative_tucker(tensor, rank=rank, random_state = random_state, init=init, n_iter_max=n_iter_max)
+    with torch.cuda.amp.autocast():
+        core, factors = non_negative_tucker(tensor, rank=rank, random_state = random_state, init=init, n_iter_max=n_iter_max)
 
     factors = [x.data.cpu().numpy() for x in factors]
     core = core.data.cpu().numpy()
@@ -561,7 +582,7 @@ def interaction_select_multiple(interactiontensor: InteractionTensor=None, sampl
 
 def interaction_select(interactiontensor: InteractionTensor=None, 
                        tme_module: int=0, cellpair_module: int=0, lrpair_module: int=0, 
-                       n_lr: int=15, n_cc: int=5, 
+                       n_lr : int=15, n_cc: int=5, 
                       ):
     """
     Plot the mean intensity heatmap for a specific TME module, CellPair module, and LRPair module.
